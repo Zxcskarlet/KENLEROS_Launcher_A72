@@ -1,43 +1,14 @@
-name: Build KENLEROS APK
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
-
-permissions:
-  contents: read
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download project
-        uses: actions/checkout@v4
-
-      - name: Install Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
-      - name: Extract project
+      - name: Fix Java target
         run: |
-          unzip -q KENLEROS_Launcher_A72_v0.1.zip -d source
-
-      - name: Build APK
-        run: |
-          cd source/KENLEROS_Launcher_A72
-          gradle assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: KENLEROS-A72
-          path: source/KENLEROS_Launcher_A72/app/build/outputs/apk/debug/app-debug.apk
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("source/KENLEROS_Launcher_A72/app/build.gradle.kts")
+          s = p.read_text()
+          if "compileOptions {" not in s:
+              s = s.replace("android {", """android {
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }""", 1)
+          p.write_text(s)
+          PY
