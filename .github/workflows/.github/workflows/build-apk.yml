@@ -54,15 +54,22 @@ jobs:
               s = s.replace("android {", "android {\n    " + block, 1)
 
           p.write_text(s)
+          print("Java compatibility configured")
           PY
 
-      - name: Show Kotlin source around error
+      - name: Print MainActivity source
         run: |
           FILE="source/KENLEROS_Launcher_A72/app/src/main/java/com/kenleros/launcher/MainActivity.kt"
-          echo "===== FIRST 15 LINES ====="
+
+          echo "========== FIRST 15 LINES =========="
           head -n 15 "$FILE"
-          echo "===== LINES 235-250 ====="
+
+          echo "========== LINES 235-250 =========="
           nl -ba "$FILE" | sed -n '235,250p'
+
+          echo "========== IMAGE REFERENCES =========="
+          grep -n -C 3 "Image(" "$FILE" || true
+          grep -n -C 3 "asImageBitmap" "$FILE" || true
 
       - name: Build APK
         run: |
