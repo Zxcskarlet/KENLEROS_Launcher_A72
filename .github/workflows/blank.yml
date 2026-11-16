@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download project
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Java
@@ -32,14 +32,15 @@ jobs:
         run: |
           unzip -q KENLEROS_Launcher_A72_v0.1.zip -d source
 
-      - name: Fix Java and Kotlin compatibility
+      - name: Fix project configuration
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
 
-          p = Path("source/KENLEROS_Launcher_A72/app/build.gradle.kts")
-          s = p.read_text()
+          root = Path("source/KENLEROS_Launcher_A72")
+          gradle_file = root / "app/build.gradle.kts"
+          s = gradle_file.read_text()
 
           block = """compileOptions {
               sourceCompatibility = JavaVersion.VERSION_17
@@ -52,28 +53,19 @@ jobs:
           else:
               s = s.replace("android {", "android {\n    " + block, 1)
 
-          p.write_text(s)
-          PY
+          gradle_file.write_text(s)
 
-      - name: Fix Kotlin source
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          kotlin_file = root / "app/src/main/java/com/kenleros/launcher/MainActivity.kt"
+          lines = kotlin_file.read_text().splitlines()
 
-          p = Path("source/KENLEROS_Launcher_A72/app/src/main/java/com/kenleros/launcher/MainActivity.kt")
-          lines = p.read_text().splitlines()
-
-          imp = "import androidx.compose.ui.graphics.asImageBitmap"
-          lines = [line for line in lines if line.strip() != imp]
-
+          lines = [line for line in lines if "asImageBitmap" not in line]
           package_index = next(i for i, line in enumerate(lines) if line.startswith("package "))
-          lines.insert(package_index + 1, imp)
+          lines.insert(package_index + 1, "import androidx.compose.ui.graphics.asImageBitmap")
 
           if not any(line.startswith("@file:OptIn") for line in lines):
               lines.insert(0, "@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)")
 
-          p.write_text("\n".join(lines) + "\n")
-          print("Kotlin source fixed")
+          kotlin_file.write_text("\n".join(lines) + "\n")
           PY
 
       - name: Build APK
