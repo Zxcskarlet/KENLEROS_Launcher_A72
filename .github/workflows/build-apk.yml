@@ -1,1 +1,82 @@
+name: Build KENLEROS APK
 
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extract project
+        run: |
+          unzip -q KENLEROS_Launcher_A72_v0.1.zip -d source
+
+      - name: Fix Java compatibility
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("source/KENLEROS_Launcher_A72/app/build.gradle.kts")
+          s = p.read_text()
+
+          block = """compileOptions {
+              sourceCompatibility = JavaVersion.VERSION_17
+              targetCompatibility = JavaVersion.VERSION_17
+          }"""
+
+          pattern = r'compileOptions\s*\{[^}]*\}'
+          if re.search(pattern, s):
+              s = re.sub(pattern, block, s, count=1)
+          else:
+              s = s.replace("android {", "android {\n    " + block, 1)
+
+          p.write_text(s)
+          print("Java compatibility configured")
+          PY
+
+      - name: Print MainActivity source
+        run: |
+          FILE="source/KENLEROS_Launcher_A72/app/src/main/java/com/kenleros/launcher/MainActivity.kt"
+
+          echo "========== FIRST 15 LINES =========="
+          head -n 15 "$FILE"
+
+          echo "========== LINES 235-250 =========="
+          nl -ba "$FILE" | sed -n '235,250p'
+
+          echo "========== IMAGE REFERENCES =========="
+          grep -n -C 3 "Image(" "$FILE" || true
+          grep -n -C 3 "asImageBitmap" "$FILE" || true
+
+      - name: Build APK
+        run: |
+          cd source/KENLEROS_Launcher_A72
+          gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KENLEROS-A72
+          path: source/KENLEROS_Launcher_A72/app/build/outputs/apk/debug/app-debug.apk
