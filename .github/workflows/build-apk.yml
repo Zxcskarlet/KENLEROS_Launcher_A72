@@ -1,3 +1,4 @@
+
 name: Build KENLEROS APK
 
 on:
@@ -32,6 +33,32 @@ jobs:
         run: |
           unzip -q KENLEROS_Launcher_A72_v0.1.zip -d source
 
+      - name: Fix Kotlin source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("source/KENLEROS_Launcher_A72/app/src/main/java/com/kenleros/launcher/MainActivity.kt")
+          s = p.read_text()
+
+          annotation = "@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)"
+          if annotation not in s:
+              s = annotation + "\n" + s
+
+          imp = "import androidx.compose.ui.graphics.asImageBitmap"
+          if imp not in s:
+              package_end = s.find("\n", s.find("package "))
+              s = s[:package_end + 1] + "\n" + imp + s[package_end + 1:]
+
+          p.write_text(s)
+          print("Kotlin source patched")
+
+          print("========== SOURCE AROUND LINE 241 ==========")
+          lines = s.splitlines()
+          for i in range(max(0, 235), min(len(lines), 250)):
+              print(f"{i+1}: {lines[i]}")
+          PY
+
       - name: Fix Java compatibility
         run: |
           python3 - <<'PY'
@@ -56,20 +83,6 @@ jobs:
           print("Java compatibility configured")
           PY
 
-      - name: Print MainActivity source
-        run: |
-          FILE="source/KENLEROS_Launcher_A72/app/src/main/java/com/kenleros/launcher/MainActivity.kt"
-
-          echo "========== FIRST 15 LINES =========="
-          head -n 15 "$FILE"
-
-          echo "========== LINES 235-250 =========="
-          nl -ba "$FILE" | sed -n '235,250p'
-
-          echo "========== IMAGE REFERENCES =========="
-          grep -n -C 3 "Image(" "$FILE" || true
-          grep -n -C 3 "asImageBitmap" "$FILE" || true
-
       - name: Build APK
         run: |
           cd source/KENLEROS_Launcher_A72
@@ -80,3 +93,8 @@ jobs:
         with:
           name: KENLEROS-A72
           path: source/KENLEROS_Launcher_A72/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Verify APK
+        run: |
+          test -f source/KENLEROS_Launcher_A72/app/build/outputs/apk/debug/app-debug.apk
+          echo "KENLEROS APK successfully created"
