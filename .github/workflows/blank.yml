@@ -32,7 +32,7 @@ jobs:
         run: |
           unzip -q KENLEROS_Launcher_A72_v0.1.zip -d source
 
-      - name: Fix Java target
+      - name: Fix Java and Kotlin compatibility
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -40,20 +40,22 @@ jobs:
 
           p = Path("source/KENLEROS_Launcher_A72/app/build.gradle.kts")
           s = p.read_text()
-
           block = """compileOptions {
               sourceCompatibility = JavaVersion.VERSION_17
               targetCompatibility = JavaVersion.VERSION_17
           }"""
-
           pattern = r'compileOptions\s*\{[^}]*\}'
           if re.search(pattern, s):
               s = re.sub(pattern, block, s, count=1)
           else:
               s = s.replace("android {", "android {\n    " + block, 1)
-
           p.write_text(s)
           PY
+
+      - name: Fix Kotlin import
+        run: |
+          FILE="source/KENLEROS_Launcher_A72/app/src/main/java/com/kenleros/launcher/MainActivity.kt"
+          grep -q 'import androidx.compose.ui.graphics.asImageBitmap' "$FILE" || sed -i '1i import androidx.compose.ui.graphics.asImageBitmap' "$FILE"
 
       - name: Build APK
         run: |
