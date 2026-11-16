@@ -1,3 +1,4 @@
+
 name: Build KENLEROS APK
 
 on:
@@ -31,7 +32,7 @@ jobs:
         run: |
           unzip -q KENLEROS_Launcher_A72_v0.1.zip -d source
 
-            - name: Fix Java target
+      - name: Fix Java target
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -41,9 +42,9 @@ jobs:
           s = p.read_text()
 
           block = """compileOptions {
-                  sourceCompatibility = JavaVersion.VERSION_17
-                  targetCompatibility = JavaVersion.VERSION_17
-              }"""
+              sourceCompatibility = JavaVersion.VERSION_17
+              targetCompatibility = JavaVersion.VERSION_17
+          }"""
 
           pattern = r'compileOptions\s*\{[^}]*\}'
           if re.search(pattern, s):
