@@ -40,22 +40,41 @@ jobs:
 
           p = Path("source/KENLEROS_Launcher_A72/app/build.gradle.kts")
           s = p.read_text()
+
           block = """compileOptions {
               sourceCompatibility = JavaVersion.VERSION_17
               targetCompatibility = JavaVersion.VERSION_17
           }"""
+
           pattern = r'compileOptions\s*\{[^}]*\}'
           if re.search(pattern, s):
               s = re.sub(pattern, block, s, count=1)
           else:
               s = s.replace("android {", "android {\n    " + block, 1)
+
           p.write_text(s)
           PY
 
-      - name: Fix Kotlin import
+      - name: Fix Kotlin source
         run: |
-          FILE="source/KENLEROS_Launcher_A72/app/src/main/java/com/kenleros/launcher/MainActivity.kt"
-          grep -q 'import androidx.compose.ui.graphics.asImageBitmap' "$FILE" || sed -i '1i import androidx.compose.ui.graphics.asImageBitmap' "$FILE"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("source/KENLEROS_Launcher_A72/app/src/main/java/com/kenleros/launcher/MainActivity.kt")
+          lines = p.read_text().splitlines()
+
+          imp = "import androidx.compose.ui.graphics.asImageBitmap"
+          lines = [line for line in lines if line.strip() != imp]
+
+          package_index = next(i for i, line in enumerate(lines) if line.startswith("package "))
+          lines.insert(package_index + 1, imp)
+
+          if not any(line.startswith("@file:OptIn") for line in lines):
+              lines.insert(0, "@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)")
+
+          p.write_text("\n".join(lines) + "\n")
+          print("Kotlin source fixed")
+          PY
 
       - name: Build APK
         run: |
